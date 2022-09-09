@@ -1,5 +1,6 @@
 require('console.table')
 const inquirer = require('inquirer');
+const { connect } = require('./config/connection');
 const connection = require('./config/connection').promise();
 
 async function chooseAction() {
@@ -9,17 +10,26 @@ async function chooseAction() {
         message: "Please select a task.",
         choices: [
             "View departments",
-            "View roles"
+            "View roles",
+            "View employees",
+            "Add department"
         ]
     })
     switch (action) {
         case "View departments":
-            viewDepartments();
+            await viewDepartments();
             break;
         case "View roles":
-            viewRoles()
+            await viewRoles()
+            break;
+        case "View employees":
+            await viewEmployees();
+            break;
+        case "Add department":
+            await addDepartment();
             break;
     }
+    process.exit(0);
 }
 
 async function viewDepartments() {
@@ -28,7 +38,36 @@ async function viewDepartments() {
 }
 
 async function viewRoles() {
-    const [roles] = await connection.query('select role.id, role.title, role.salary, department.name from role left join department on role.department_id = department.id')
+    const [roles] = await connection.query(`
+    SELECT role.id, role.title, role.salary, department.name 
+    FROM role
+    LEFT JOIN department
+    ON role.department_id = department.id`)
     console.table(roles)
 }
+
+async function viewEmployees() {
+    const [employees] = await connection.query(`
+    SELECT emp.id, emp.first_name, emp.last_name, role.title, department.name AS department, role.salary, man.first_name AS manager_first, man.last_name AS manager_last
+    FROM employee emp
+    LEFT JOIN role
+    ON emp.role_id = role.id
+    LEFT JOIN department
+    ON role.department_id = department.id
+    LEFT JOIN employee man
+    ON emp.manager_id = man.id`)
+    console.table(employees)
+}
+
+async function addDepartment() {
+    const {name} = await inquirer.prompt({
+        type: "input",
+        name: "name",
+        message: "What is the name of your department?"
+    })
+    await connection.query(`INSERT INTO department (name)
+    VALUES 
+    ("${name}")`)
+}
+
 chooseAction();
